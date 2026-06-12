@@ -1,0 +1,15 @@
+{
+  "name": "git-metrics",
+  "version": "1.0.0",
+  "description": "Analyze git repos for contributor metrics, bus factor, and code churn — zero deps",
+  "main": "src/index.js",
+  "bin": {
+    "git-metrics": "./src/cli.js"
+  },
+  "scripts": {
+    "test": "node test/test.js"
+  },
+  "keywords": ["git", "metrics", "bus-factor", "code-churn", "contributors", "analytics"],
+  "license": "MIT",
+  "engines": { "node": ">=16" }
+}

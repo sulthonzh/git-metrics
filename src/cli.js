@@ -23,6 +23,11 @@ for (let i = 0; i < args.length; i++) {
   if (args[i] === '--timeline') sections.add('timeline');
   if (args[i] === '--ownership') sections.add('ownership');
   if (args[i] === '--summary') sections.add('summary');
+  if (args[i] === '--version' || args[i] === '-V') {
+    const pkg = require('../package.json');
+    console.log(pkg.version);
+    process.exit(0);
+  }
   if (args[i] === '--help' || args[i] === '-h') {
     console.log(`
 git-metrics — Analyze git repos for contributor metrics, bus factor, and code churn.

@@ -1,6 +1,6 @@
 # git-metrics
 
-Analyze git repos for contributor metrics, bus factor, and code churn. Zero dependencies.
+Bus factor, code churn, and contributor analytics — straight from your git repo. Zero dependencies, zero API keys.
 
 ## Why
 
@@ -21,6 +21,83 @@ npm install -g git-metrics
 # or use directly
 npx git-metrics .
 ```
+
+## Quick Start
+
+```bash
+git-metrics .                    # full analysis
+git-metrics . --json             # JSON output for scripts
+git-metrics . --bus-factor       # just the risk assessment
+```
+
+## Real-World Examples
+
+### 1. Pre-Release Risk Assessment
+
+Before cutting a release, check your team's bus factor and identify single-owner files:
+
+```bash
+$ git-metrics . --bus-factor --ownership --top 10
+
+  Bus Factor
+  ─────────────────────────────────
+  Bus factor: 2
+  Coverage:   78.3% of commits by 2 contributor(s)
+  Critical contributors:
+    - Alice (847 commits)
+    - Bob (312 commits)
+
+  File Ownership (most contested files)
+  ─────────────────────────────────
+  src/auth/token.js     Alice                      95%   1   ← single point of failure
+  src/api/handler.js    Alice                      72%   3
+  src/db/schema.js      Bob                         88%   2   ← single point of failure
+```
+
+If `src/auth/token.js` only has one contributor at 95% ownership, that's your risk surface — get someone else familiar with it before release.
+
+### 2. Sprint Retrospective Data
+
+Generate a code churn report for the sprint window to find unstable areas:
+
+```bash
+# Analyze last 2 weeks of sprint
+git-metrics . --churn --since "2 weeks ago" --top 15 --json | \
+  jq '.churn[:5]'
+
+[
+  { "file": "src/checkout/payment.js", "changes": 23 },
+  { "file": "src/cart/totals.js", "changes": 18 },
+  { "file": "src/api/refunds.js", "changes": 15 }
+]
+```
+
+`payment.js` touched 23 times in 2 weeks? Either it's the focal point of the sprint or it's unstable and needs refactoring.
+
+### 3. Onboarding/New-Hire Audit
+
+When a new developer joins, check which areas of the codebase have the most knowledge concentration:
+
+```bash
+# Full report for onboarding planning
+git-metrics ~/projects/legacy-api --since "6 months ago" > onboarding-audit.txt
+
+# Find files only one person has ever touched
+git-metrics ~/projects/legacy-api --ownership --json | \
+  jq '.ownership[] | select(.contributors == 1) | .file'
+```
+
+Files with `contributors: 1` are your "tribal knowledge" zones — document them or pair-program on them during onboarding.
+
+## Comparison
+
+| Tool | Bus Factor | Code Churn | File Ownership | Zero Deps | Offline |
+|------|:---------:|:---------:|:--------------:|:---------:|:-------:|
+| **git-metrics** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `git log --stat` | ❌ | partial | ❌ | ✅ | ✅ |
+| `git-fame` | ❌ | ❌ | ❌ | ❌ | ✅ |
+| GitHub Insights | ✅ | ✅ | partial | — | ❌ |
+| GitLab Value Stream | ❌ | ✅ | ❌ | — | ❌ |
 
 ## Usage
 
@@ -104,6 +181,8 @@ Each function takes `(repoPath, opts)` and returns its specific result.
 | `--timeline` | Show commit timeline only |
 | `--ownership` | Show file ownership only |
 | `--summary` | Show repo summary only |
+| `--version, -V` | Show version |
+| `-h, --help` | Show help |
 
 ## License
 

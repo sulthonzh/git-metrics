@@ -198,6 +198,62 @@ try {
   assert(false, `CLI --churn failed: ${e.message}`);
 }
 
+// ── Security tests ─────────────────────────────────────────────
+
+console.log('security: version flag');
+try {
+  const output = execSync(`node ${path.join(__dirname, '..', 'src', 'cli.js')} --version`, { encoding: 'utf-8' }).trim();
+  assert(output === '1.1.0', `version should be 1.1.0, got ${output}`);
+} catch (e) {
+  assert(false, `--version failed: ${e.message}`);
+}
+
+console.log('security: -V short flag');
+try {
+  const output = execSync(`node ${path.join(__dirname, '..', 'src', 'cli.js')} -V`, { encoding: 'utf-8' }).trim();
+  assert(output === '1.1.0', `-V should output 1.1.0, got ${output}`);
+} catch (e) {
+  assert(false, `-V failed: ${e.message}`);
+}
+
+console.log('security: no shell injection surface');
+// Verify that runGit uses execFileSync (array args, no shell) by checking source code
+const srcContent = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.js'), 'utf-8');
+assert(srcContent.includes('execFileSync'), 'source should use execFileSync (not execSync)');
+assert(!srcContent.includes('execSync('), 'source should not call execSync');
+assert(srcContent.includes("{ execFileSync }"), 'should destructure execFileSync');
+
+// ── Edge case tests ────────────────────────────────────────────
+
+console.log('edge: empty contributors busFactor');
+const busEmpty2 = getBusFactor([]);
+assert(busEmpty2.busFactor === 0, 'empty busFactor should be 0');
+assert(busEmpty2.coverage === 0, 'empty coverage should be 0');
+assert(busEmpty2.critical.length === 0, 'empty critical should be empty array');
+
+console.log('edge: single contributor dominance');
+const singleContrib = [{ name: 'Solo', email: 'solo@test.com', commits: 100, added: 1000, deleted: 500, files: 50 }];
+const busSingle = getBusFactor(singleContrib);
+assert(busSingle.busFactor === 1, 'single contributor busFactor should be 1');
+assert(busSingle.coverage === 100, 'single contributor coverage should be 100');
+
+console.log('edge: churn top 1');
+const churn1 = getChurn(testRepo, { top: 1 });
+assert(churn1.length === 1, 'churn top:1 should return exactly 1 item');
+assert(churn1[0].file === 'file0.txt', 'top churned file should be file0.txt');
+
+console.log('edge: summary with no tags');
+const noTagSummary = getSummary(testRepo);
+// testRepo has no tags created
+assert(noTagSummary.tags === 0, 'testRepo should have 0 tags');
+
+console.log('edge: analyze sections completeness');
+const fullAnalyze = analyze(testRepo);
+const expectedKeys = ['summary', 'contributors', 'busFactor', 'churn', 'timeline', 'ownership'];
+for (const key of expectedKeys) {
+  assert(fullAnalyze.hasOwnProperty(key), `analyze result should have key: ${key}`);
+}
+
 // Cleanup
 try {
   fs.rmSync(testRepo, { recursive: true, force: true });

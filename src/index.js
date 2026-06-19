@@ -1,6 +1,6 @@
 'use strict';
 
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
@@ -13,7 +13,7 @@ const fs = require('fs');
 
 function runGit(args, repoPath) {
   try {
-    return execSync(`git ${args}`, {
+    return execFileSync('git', args, {
       cwd: repoPath,
       encoding: 'utf-8',
       maxBuffer: 10 * 1024 * 1024,
@@ -51,15 +51,12 @@ function parseLogLine(line) {
 function getContributors(repoPath, opts = {}) {
   const since = opts.since || '';
   const until = opts.until || '';
-  const dateRange = [];
-  if (since) dateRange.push(`--since="${since}"`);
-  if (until) dateRange.push(`--until="${until}"`);
-  const dateArgs = dateRange.join(' ');
+  const args = ['log'];
+  if (since) args.push(`--since=${since}`);
+  if (until) args.push(`--until=${until}`);
+  args.push('--format=%aN<|>%aE', '--shortstat');
 
-  const raw = runGit(
-    `log ${dateArgs} --format="%aN<|>%aE" --shortstat`,
-    repoPath
-  );
+  const raw = runGit(args, repoPath);
   if (!raw) return [];
 
   const blocks = raw.split(/\n(?=[^\s])/);
@@ -128,7 +125,7 @@ function getChurn(repoPath, opts = {}) {
   const top = opts.top || 10;
 
   const raw = runGit(
-    `log --since="${since}" --format="" --name-only`,
+    ['log', `--since=${since}`, '--format=', '--name-only'],
     repoPath
   );
   if (!raw) return [];
@@ -153,7 +150,7 @@ function getChurn(repoPath, opts = {}) {
 function getCommitTimeline(repoPath, opts = {}) {
   const since = opts.since || '6 months ago';
   const raw = runGit(
-    `log --since="${since}" --format="%aI" --date=iso`,
+    ['log', `--since=${since}`, '--format=%aI', '--date=iso'],
     repoPath
   );
   if (!raw) return [];
@@ -179,7 +176,7 @@ function getCommitTimeline(repoPath, opts = {}) {
  */
 function getFileOwnership(repoPath, opts = {}) {
   const top = opts.top || 10;
-  const raw = runGit('log --format="%aN" --name-only', repoPath);
+  const raw = runGit(['log', '--format=%aN', '--name-only'], repoPath);
   if (!raw) return [];
 
   const files = new Map();
@@ -218,27 +215,34 @@ function getFileOwnership(repoPath, opts = {}) {
  * Get repo summary stats.
  */
 function getSummary(repoPath, opts = {}) {
-  const totalCommits = runGit('rev-list --count HEAD', repoPath);
-  const firstCommit = runGit('log --reverse --format="%aI" --max-count=1', repoPath);
-  const lastCommit = runGit('log --format="%aI" --max-count=1', repoPath);
-  const branchCount = runGit('branch -a | wc -l', repoPath);
-  const tagCount = runGit('tag | wc -l', repoPath);
-  const trackedFiles = runGit('ls-files | wc -l', repoPath);
-  const totalLines = runGit('ls-files | xargs wc -l 2>/dev/null | tail -1', repoPath);
-
+  const totalCommits = runGit(['rev-list', '--count', 'HEAD'], repoPath);
+  const firstCommit = runGit(['log', '--reverse', '--format=%aI', '--max-count=1'], repoPath);
+  const lastCommit = runGit(['log', '--format=%aI', '--max-count=1'], repoPath);
+  const branches = runGit(['branch', '-a'], repoPath);
+  const branchCount = branches ? branches.split('\n').length : 0;
+  const tags = runGit(['tag'], repoPath);
+  const tagCount = tags ? tags.split('\n').filter(Boolean).length : 0;
+  const tracked = runGit(['ls-files'], repoPath);
+  const trackedFiles = tracked ? tracked.split('\n').filter(Boolean).length : 0;
   let lineCount = 0;
-  if (totalLines) {
-    const m = totalLines.match(/(\d+)/);
-    if (m) lineCount = parseInt(m[1], 10);
+  if (tracked) {
+    const fileList = tracked.split('\n').filter(Boolean);
+    for (const file of fileList) {
+      try {
+        const fullPath = path.join(repoPath, file);
+        const content = fs.readFileSync(fullPath, 'utf-8');
+        lineCount += content.split('\n').length;
+      } catch {}
+    }
   }
 
   return {
     totalCommits: parseInt(totalCommits, 10) || 0,
     firstCommit,
     lastCommit,
-    branches: parseInt(branchCount, 10) || 0,
-    tags: parseInt(tagCount, 10) || 0,
-    trackedFiles: parseInt(trackedFiles, 10) || 0,
+    branches: branchCount,
+    tags: tagCount,
+    trackedFiles,
     totalLines: lineCount,
   };
 }

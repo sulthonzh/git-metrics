@@ -14,7 +14,31 @@
     "test": "node test/test.js",
     "prepublishOnly": "npm test"
   },
-  "keywords": ["git", "metrics", "bus-factor", "code-churn", "contributors", "analytics"],
+  "keywords": [
+    "git",
+    "metrics",
+    "bus-factor",
+    "code-churn",
+    "contributors",
+    "analytics"
+  ],
   "license": "MIT",
-  "engines": { "node": ">=16" }
+  "engines": {
+    "node": ">=16"
+  },
+  "files": [
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sulthonzh/git-metrics"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.31.0"
+  }
 }

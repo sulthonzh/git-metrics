@@ -32,7 +32,6 @@ jobs:
       - name: Create Release Pull Request or Publish
         uses: changesets/action@v2.1.0
         with:
-          publish-script: npm publish
           version-script: npm changeset version
           commit-message: "chore: release packages"
           pr-title: "chore: version packages"
